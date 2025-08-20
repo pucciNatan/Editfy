@@ -1,2 +1,2 @@
 # Editfy
-Um site, ou melhor, uma ponte entre editores de vídeos e contratantes 🎥
+[EM DESENVOLVIMENTO] Um site, ou melhor, uma ponte entre editores de vídeos e contratantes 🎥
