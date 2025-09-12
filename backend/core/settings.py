@@ -35,7 +35,8 @@ INSTALLED_APPS = [
     "django.contrib.postgres",
     "accounts",
     "portfolio",
-    "content"
+    "content",
+    "jobs"
 ]
 
 MIDDLEWARE = [
