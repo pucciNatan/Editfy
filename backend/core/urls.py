@@ -30,5 +30,9 @@ urlpatterns = [
 
     # jobs
     path("api/", include(router.urls)),
+
+    # chat
+    path("api/chat/", include("chat.urls")),
+
 ]
 2

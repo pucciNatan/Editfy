@@ -1,7 +1,7 @@
 from django.db import models
 from django.conf import settings
 from django.contrib.postgres.fields import ArrayField
-
+from django.core.exceptions import ValidationError
 
 class Video(models.Model):
     author = models.ForeignKey(
@@ -10,6 +10,7 @@ class Video(models.Model):
         related_name="videos_authored",
     )
     title = models.CharField(max_length=160)
+    url = models.URLField(db_index=True)
     description = models.TextField(blank=True, default="")
     tags = ArrayField(models.CharField(max_length=32), default=list, blank=True)
     categories = ArrayField(models.CharField(max_length=32), default=list, blank=True)
@@ -24,6 +25,10 @@ class Video(models.Model):
 
     def __str__(self):
         return self.title
+    
+    def clean(self):
+        if "youtube.com" not in self.url:
+            raise ValidationError({"url": "A URL deve ser do YouTube."})
 
 
 class RecommendationPost(models.Model):

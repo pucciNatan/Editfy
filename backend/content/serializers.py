@@ -6,8 +6,13 @@ class VideoSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Video
-        fields = ["id", "author", "title", "description", "tags", "categories", "created_at", "updated_at"]
+        fields = ["id", "author", "title", "url", "description", "tags", "categories", "created_at", "updated_at"]
         read_only_fields = ["id", "created_at", "updated_at"]
+
+    def validate_url(self, value):
+        if "youtube.com" not in value:
+            raise serializers.ValidationError("A URL deve ser um link válido do YouTube.")
+        return value
 
 class RecommendationPostWriteSerializer(serializers.ModelSerializer):
     class Meta:
