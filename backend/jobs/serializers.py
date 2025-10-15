@@ -1,6 +1,7 @@
 from rest_framework import serializers
 from .models import Job, JobApplication
 from decimal import Decimal
+from core.validators import normalize_tags
 
 def brl(value: Decimal | None) -> str:
     """Formata valores em reais (R$ 1.000,00)."""
@@ -12,6 +13,7 @@ def brl(value: Decimal | None) -> str:
 
 class JobWriteSerializer(serializers.ModelSerializer):
     payment_display = serializers.SerializerMethodField()
+    tags = serializers.ListField(child=serializers.CharField(), required=False)
 
     class Meta:
         model = Job
@@ -20,10 +22,13 @@ class JobWriteSerializer(serializers.ModelSerializer):
             "video_example_urls", "video_duration",
             "type", "work_mode", "location",
             "min_payment", "max_payment", "fixed_payment", "payment_display",
-            "tags", "categories",
+            "tags",
             "created_at", "updated_at"
         ]
         read_only_fields = ["id", "contractor", "created_at", "updated_at"]
+
+    def validate_tags(self, value):
+        return normalize_tags(value)
 
     def validate(self, attrs):
         min_p = attrs.get("min_payment")
@@ -73,7 +78,7 @@ class JobReadSerializer(serializers.ModelSerializer):
             "video_example_urls", "video_duration",
             "type", "work_mode", "location",
             "min_payment", "max_payment", "fixed_payment", "payment_display",
-            "tags", "categories",
+            "tags",
             "applications_count",
             "created_at", "updated_at"
         ]

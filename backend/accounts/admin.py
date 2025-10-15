@@ -10,14 +10,14 @@ class AccountAdmin(BaseUserAdmin):
     search_fields = ("full_name", "email", "nick")
     fieldsets = (
         (None, {"fields": ("email", "password")}),
-        ("Informações pessoais", {"fields": ("full_name", "nick", "phone", "cep", "profile_photo_url", "birth_date", "role")}),
+        ("Informações pessoais", {"fields": ("full_name", "nick", "cep", "profile_photo_url", "birth_date", "role")}),
         ("Permissões", {"fields": ("is_active", "is_staff", "is_superuser", "groups", "user_permissions")}),
         ("Datas importantes", {"fields": ("last_login",)}),
     )
     add_fieldsets = (
         (None, {
             "classes": ("wide",),
-            "fields": ("email", "password1", "password2", "full_name", "nick", "phone", "cep", "birth_date", "role"),
+            "fields": ("email", "password1", "password2", "full_name", "nick", "cep", "birth_date", "role"),
         }),
     )
 

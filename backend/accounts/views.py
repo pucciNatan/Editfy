@@ -3,7 +3,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from .serializers import (
-    EditorSignupSerializer, ContractorSignupSerializer, AccountMeSerializer
+    EditorSignupSerializer, ContractorSignupSerializer, AccountMeSerializer, AccountUpdateSerializer
 )
 
 class EditorSignupView(APIView):
@@ -31,3 +31,13 @@ class MeView(APIView):
 
     def get(self, request):
         return Response(AccountMeSerializer(request.user).data)
+    
+class AccountUpdateView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def patch(self, request):
+        user = request.user
+        serializer = AccountUpdateSerializer(user, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data, status=status.HTTP_200_OK)

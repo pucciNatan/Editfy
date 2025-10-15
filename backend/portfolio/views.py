@@ -1,35 +1,27 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
+from rest_framework.permissions import AllowAny, IsAuthenticated
+
 from .permissions import IsEditorOwner
-from rest_framework.permissions import AllowAny
-from .models import Portfolio
-from rest_framework.permissions import IsAuthenticated
-from .serializers import PortfolioWriteSerializer, PortfolioReadSerializer
-from content.models import Video
+from .models import Portfolio, ContractorPortfolio
+from .serializers import (
+    PortfolioWriteSerializer, PortfolioReadSerializer,
+    ContractorPortfolioWriteSerializer, ContractorPortfolioReadSerializer,
+)
+from accounts.models import Account
 from content.models import RecommendationPost
-from content.serializers import RecommendationPostReadSerializer, VideoSerializer
+from content.serializers import RecommendationPostReadSerializer
 
-class PortfolioPublicView(APIView):
-    permission_classes = [AllowAny]
+# =========================
+# EDITOR
+# =========================
 
-    def get(self, request, editor_id=None, nick=None):
-        try:
-            if editor_id is not None:
-                p = Portfolio.objects.select_related("editor").prefetch_related("videos").get(editor_id=editor_id)
-            else:
-                p = Portfolio.objects.select_related("editor").prefetch_related("videos").get(editor__nick=nick)
-        except Portfolio.DoesNotExist:
-            return Response({"detail": "Portfólio não encontrado."}, status=status.HTTP_404_NOT_FOUND)
-
-        data = PortfolioReadSerializer(p).data
-
-        rec_qs = RecommendationPost.objects.select_related("author").filter(portfolio=p).order_by("-id")
-        data["recommendation_posts"] = RecommendationPostReadSerializer(rec_qs, many=True).data
-
-        return Response(data, status=200)
-    
 class PortfolioSelfView(APIView):
+    """
+    SELF (privado): GET/PUT/PATCH do próprio portfólio do editor autenticado.
+    Rota: /api/portfolio/
+    """
     permission_classes = [IsEditorOwner]
 
     def get_object(self, request):
@@ -77,36 +69,101 @@ class PortfolioSelfView(APIView):
 
 
 class PortfolioVideosView(APIView):
+    """
+    PÚBLICO: retorna o portfólio do editor por ID (inclui vídeos e recomendações).
+    Rota: /api/portfolio/<int:editor_id>/
+    """
+    permission_classes = [AllowAny]
+
+    def get(self, request, editor_id=None):
+        if editor_id is None:
+            return Response({"detail": "Informe editor_id."}, status=400)
+        try:
+            user = Account.objects.get(pk=editor_id, role=Account.Roles.EDITOR)
+        except Account.DoesNotExist:
+            return Response({"detail": "Editor não encontrado."}, status=404)
+
+        try:
+            p = Portfolio.objects.select_related("editor").prefetch_related("videos").get(editor=user)
+        except Portfolio.DoesNotExist:
+            return Response({"detail": "Portfólio não encontrado."}, status=404)
+
+        data = PortfolioReadSerializer(p).data
+
+        rec_qs = RecommendationPost.objects.select_related("author").filter(portfolio=p).order_by("-id")
+        data["recommendation_posts"] = RecommendationPostReadSerializer(rec_qs, many=True).data
+
+        return Response(data, status=200)
+
+# =========================
+# CONTRATANTE
+# =========================
+
+class ContractorPortfolioSelfView(APIView):
+    """
+    SELF (privado): GET/PUT/PATCH do próprio portfólio do contratante autenticado.
+    Rota: /api/contractor-portfolio/
+    """
     permission_classes = [IsAuthenticated]
 
     def get_portfolio(self, request):
-        return Portfolio.objects.get(editor=request.user)
+        return ContractorPortfolio.objects.get(contractor=request.user)
 
     def get(self, request):
         try:
             p = self.get_portfolio(request)
-        except Portfolio.DoesNotExist:
+        except ContractorPortfolio.DoesNotExist:
             return Response({"detail": "Portfólio não encontrado."}, status=404)
-        videos = p.videos.all().order_by("-id")
-        return Response(VideoSerializer(videos, many=True).data, status=200)
+        return Response(ContractorPortfolioReadSerializer(p).data)
 
-    def post(self, request):
-        return Response({"detail": "Operação não permitida. Vídeos são adicionados automaticamente ao criar."},
-                        status=status.HTTP_405_METHOD_NOT_ALLOWED)
-
-    def delete(self, request, video_id=None):
+    def put(self, request):
         try:
             p = self.get_portfolio(request)
-        except Portfolio.DoesNotExist:
+        except ContractorPortfolio.DoesNotExist:
             return Response({"detail": "Portfólio não encontrado."}, status=404)
 
-        if not (getattr(request.user, "is_staff", False) or p.editor_id == request.user.id):
+        if not (getattr(request.user, "is_staff", False) or p.contractor_id == request.user.id):
             return Response({"detail": "Sem permissão."}, status=403)
 
-        try:
-            video = Video.objects.get(pk=video_id)
-        except Video.DoesNotExist:
-            return Response({"detail": "Vídeo não encontrado."}, status=404)
+        serializer = ContractorPortfolioWriteSerializer(p, data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(ContractorPortfolioReadSerializer(p).data)
 
-        p.videos.remove(video)
-        return Response(status=204)
+    def patch(self, request):
+        try:
+            p = self.get_portfolio(request)
+        except ContractorPortfolio.DoesNotExist:
+            return Response({"detail": "Portfólio não encontrado."}, status=404)
+
+        if not (getattr(request.user, "is_staff", False) or p.contractor_id == request.user.id):
+            return Response({"detail": "Sem permissão."}, status=403)
+
+        serializer = ContractorPortfolioWriteSerializer(p, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(ContractorPortfolioReadSerializer(p).data)
+
+
+class ContractorPortfolioPublicView(APIView):
+    """
+    PÚBLICO: retorna o portfólio do contratante por ID.
+    Rota: /api/contractor-portfolio/<int:contractor_id>/
+    """
+    permission_classes = [AllowAny]
+
+    def get(self, request, contractor_id=None):
+        if contractor_id is None:
+            return Response({"detail": "Informe contractor_id."}, status=400)
+        try:
+            user = Account.objects.get(pk=contractor_id, role=Account.Roles.CONTRACTOR)
+        except Account.DoesNotExist:
+            return Response({"detail": "Contratante não encontrado."}, status=404)
+
+        try:
+            p = ContractorPortfolio.objects.get(contractor=user)
+        except ContractorPortfolio.DoesNotExist:
+            return Response({"detail": "Portfólio não encontrado."}, status=404)
+
+        data = ContractorPortfolioReadSerializer(p).data
+        return Response(data, status=200)

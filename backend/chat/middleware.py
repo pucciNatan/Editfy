@@ -1,4 +1,3 @@
-# chat/middleware.py
 import urllib.parse
 from typing import Optional
 

@@ -13,7 +13,6 @@ class Video(models.Model):
     url = models.URLField(db_index=True)
     description = models.TextField(blank=True, default="")
     tags = ArrayField(models.CharField(max_length=32), default=list, blank=True)
-    categories = ArrayField(models.CharField(max_length=32), default=list, blank=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
