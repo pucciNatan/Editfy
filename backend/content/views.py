@@ -2,6 +2,7 @@ import random
 from rest_framework import viewsets, permissions
 from rest_framework.response import Response
 from rest_framework.exceptions import ValidationError
+from rest_framework.exceptions import ValidationError, PermissionDenied
 
 from .models import Video, RecommendationPost
 from .serializers import VideoSerializer, RecommendationPostWriteSerializer, RecommendationPostReadSerializer
@@ -21,6 +22,26 @@ class VideoViewSet(viewsets.ModelViewSet):
         if self.action in ("list", "retrieve"):
             return [permissions.AllowAny()]
         return [IsVideoAuthorOrStaff()]
+    
+    def perform_create(self, serializer):
+        user = self.request.user
+        if not user or not user.is_authenticated:
+            raise PermissionDenied("Autenticação é obrigatória.")
+
+        # (opcional) só EDITOR pode postar vídeo
+        if getattr(user, "role", None) != "EDITOR":
+            raise PermissionDenied("Apenas editores podem publicar vídeos.")
+
+        # salva o vídeo com o autor correto
+        instance = serializer.save(author=user)
+
+        # associa ao portfólio do autor
+        try:
+            portfolio = Portfolio.objects.get(editor=user)
+        except Portfolio.DoesNotExist:
+            # se preferir, crie automático, mas normalmente é 404
+            raise ValidationError({"portfolio": ["Portfólio do editor não encontrado."]})
+        portfolio.videos.add(instance)
 
     def list(self, request, *args, **kwargs):
         qs = self.get_queryset()
