@@ -28,6 +28,11 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
         else:
             await self.accept()
 
+        print("WS subprotocols:", self.scope.get("subprotocols"))
+        print("WS user:", self.scope.get("user"))
+        print("WS jwt_user_id:", self.scope.get("jwt_user_id", None))
+
+
     async def disconnect(self, code):
         # Evita AttributeError quando a conexão é rejeitada no connect()
         if hasattr(self, "group_name") and self.group_name:
