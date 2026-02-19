@@ -5,6 +5,11 @@ from content.serializers import VideoSerializer
 from jobs.serializers import JobReadSerializer
 from core.validators import normalize_tags, validate_categories
 from core.constants import CATEGORIES_CHOICES
+from django.db.models import Count
+from django.db.models import Count, OuterRef, Subquery, Exists, Value, IntegerField, BooleanField
+from jobs.models import Job, JobApplication
+from jobs.serializers import JobReadSerializer
+
 
 def brl(value: Decimal | None) -> str:
     if value is None:
@@ -94,14 +99,41 @@ class ContractorPortfolioWriteSerializer(serializers.ModelSerializer):
         return normalize_tags(value)
     
 class ContractorPortfolioReadSerializer(ContractorPortfolioWriteSerializer):
-    # adiciona as vagas criadas pelo contratante
     jobs = serializers.SerializerMethodField()
 
     class Meta(ContractorPortfolioWriteSerializer.Meta):
         fields = ContractorPortfolioWriteSerializer.Meta.fields + ("jobs",)
 
-    def get_jobs(self, obj: ContractorPortfolio):
-        # importa aqui para evitar dependência circular
-        from jobs.models import Job
-        qs = Job.objects.filter(contractor=obj.contractor).order_by("-id")
-        return JobReadSerializer(qs, many=True).data
+    def get_jobs(self, obj):
+        request = self.context.get("request")
+        user = getattr(request, "user", None)
+
+        qs = (
+            Job.objects
+            .filter(contractor=obj.contractor)
+            .select_related("contractor")
+            .annotate(applications_count=Count("applications", distinct=True))
+            .order_by("-id")
+        )
+
+        # ✅ replica a lógica do JobViewSet pra editor logado
+        if user and user.is_authenticated and getattr(user, "role", None) == "EDITOR":
+            app_id_sq = (
+                JobApplication.objects
+                .filter(job=OuterRef("pk"), editor=user)
+                .values("id")[:1]
+            )
+            qs = qs.annotate(
+                my_application_id=Subquery(app_id_sq, output_field=IntegerField()),
+                has_applied=Exists(
+                    JobApplication.objects.filter(job=OuterRef("pk"), editor=user)
+                ),
+            )
+        else:
+            qs = qs.annotate(
+                my_application_id=Value(None, output_field=IntegerField()),
+                has_applied=Value(False, output_field=BooleanField()),
+            )
+
+        # ✅ passa context pra manter consistência
+        return JobReadSerializer(qs, many=True, context=self.context).data

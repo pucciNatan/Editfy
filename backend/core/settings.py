@@ -2,6 +2,7 @@ from pathlib import Path
 import os
 import environ
 
+DEBUG = True
 SETTINGS_DIR = Path(__file__).resolve().parent
 BACKEND_DIR  = SETTINGS_DIR.parent
 ROOT_DIR     = BACKEND_DIR.parent
@@ -121,4 +122,19 @@ REST_FRAMEWORK = {
 
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:8080",
+    "http://localhost:8081",
+]
+
+MEDIA_URL = "/media/"
+MEDIA_ROOT = BACKEND_DIR / "media"
+
+# 🔹 IMPORTANTE: sempre com barra no começo e no fim
+STATIC_URL = "/static/"
+
+# onde o collectstatic vai jogar tudo (admin, etc.)
+STATIC_ROOT = BACKEND_DIR / "staticfiles"
+
+# se quiser ter uma pasta "backend/static" pra seus próprios arquivos
+STATICFILES_DIRS = [
+    BACKEND_DIR / "static",
 ]

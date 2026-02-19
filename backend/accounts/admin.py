@@ -3,6 +3,10 @@ from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from .models import Account
 from portfolio.models import Portfolio
 
+admin.site.site_header = "Administração Editfy"
+admin.site.site_title = "Administração Editfy"
+admin.site.index_title = "Painel administrativo Editfy"
+
 @admin.register(Account)
 class AccountAdmin(BaseUserAdmin):
     ordering = ("-account_created_at",)
@@ -20,9 +24,3 @@ class AccountAdmin(BaseUserAdmin):
             "fields": ("email", "password1", "password2", "full_name", "nick", "cep", "birth_date", "role"),
         }),
     )
-
-@admin.register(Portfolio)
-class PortfolioAdmin(admin.ModelAdmin):
-    list_display = ("id", "editor", "min_price", "max_price", "fixed_price", "created_at")
-    search_fields = ("editor__full_name", "editor__email")
-    list_filter = ("created_at", "updated_at")

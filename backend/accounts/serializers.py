@@ -53,3 +53,9 @@ class AccountUpdateSerializer(serializers.ModelSerializer):
         if value:
             return make_password(value)
         return value
+    
+class AccountPublicSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Account
+        fields = ["id", "role", "nick", "full_name", "profile_photo_url"]
+        read_only_fields = fields

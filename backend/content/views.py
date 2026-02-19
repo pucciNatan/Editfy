@@ -23,6 +23,55 @@ class VideoViewSet(viewsets.ModelViewSet):
             return [permissions.AllowAny()]
         return [IsVideoAuthorOrStaff()]
     
+    def get_queryset(self):
+        """
+        Lista de vídeos, com filtros baseados no EDITOR (autor do vídeo):
+        - categorias do portfólio do editor
+        - modo de trabalho (remoto / presencial / híbrido) salvo em tags do portfólio
+        """
+        qs = super().get_queryset()
+        params = getattr(self.request, "query_params", {})
+
+        # 1) categorias do editor (Portfolio.categories)
+        categories_param = params.get("categories")
+        if categories_param:
+            categories = [
+                c.strip().lower()
+                for c in categories_param.split(",")
+                if c.strip()
+            ]
+            if categories:
+                editor_ids = Portfolio.objects.filter(
+                    categories__overlap=categories
+                ).values_list("editor_id", flat=True)
+
+                qs = qs.filter(author_id__in=editor_ids)
+
+        # 2) modo de trabalho do editor (salvo como tag no Portfolio.tags)
+        work_mode_param = params.get("work_mode")
+        if work_mode_param:
+            raw = work_mode_param.strip().lower()
+            # convensão: tags "remote", "on_site", "hybrid" no Portfolio.tags
+            wm_tag_map = {
+                "remoto": "remote",
+                "remote": "remote",
+                "presencial": "on_site",
+                "onsite": "on_site",
+                "on_site": "on_site",
+                "hibrido": "hybrid",
+                "híbrido": "hybrid",
+                "hybrid": "hybrid",
+            }
+            tag = wm_tag_map.get(raw)
+            if tag:
+                editor_ids = Portfolio.objects.filter(
+                    tags__contains=[tag]
+                ).values_list("editor_id", flat=True)
+
+                qs = qs.filter(author_id__in=editor_ids)
+
+        return qs
+    
     def perform_create(self, serializer):
         user = self.request.user
         if not user or not user.is_authenticated:

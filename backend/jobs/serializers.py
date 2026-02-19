@@ -3,6 +3,7 @@ from .models import Job, JobApplication
 from decimal import Decimal
 from core.validators import normalize_tags
 
+
 def brl(value: Decimal | None) -> str:
     """Formata valores em reais (R$ 1.000,00)."""
     if value is None:
@@ -10,6 +11,7 @@ def brl(value: Decimal | None) -> str:
     s = f"{value:,.2f}"
     s = s.replace(",", "X").replace(".", ",").replace("X", ".")
     return f"R$ {s}"
+
 
 class JobWriteSerializer(serializers.ModelSerializer):
     payment_display = serializers.SerializerMethodField()
@@ -69,6 +71,8 @@ class JobWriteSerializer(serializers.ModelSerializer):
 class JobReadSerializer(serializers.ModelSerializer):
     contractor = serializers.PrimaryKeyRelatedField(read_only=True)
     applications_count = serializers.IntegerField(read_only=True)
+    has_applied = serializers.BooleanField(read_only=True)
+    my_application_id = serializers.IntegerField(read_only=True, allow_null=True)
     payment_display = serializers.SerializerMethodField()
 
     class Meta:
@@ -80,6 +84,7 @@ class JobReadSerializer(serializers.ModelSerializer):
             "min_payment", "max_payment", "fixed_payment", "payment_display",
             "tags",
             "applications_count",
+            "has_applied", "my_application_id",
             "created_at", "updated_at"
         ]
         read_only_fields = fields
@@ -96,7 +101,7 @@ class JobApplicationWriteSerializer(serializers.ModelSerializer):
     class Meta:
         model = JobApplication
         fields = ("id", "job", "note")
-        read_only_fields = ("id",)
+        read_only_fields = ("id", "job")
 
 
 class JobApplicationReadSerializer(serializers.ModelSerializer):

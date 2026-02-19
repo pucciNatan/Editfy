@@ -12,6 +12,11 @@ from .serializers import (
 from accounts.models import Account
 from content.models import RecommendationPost
 from content.serializers import RecommendationPostReadSerializer
+from rest_framework.parsers import MultiPartParser, FormParser
+
+from django.core.files.storage import default_storage
+import os
+import uuid  
 
 # =========================
 # EDITOR
@@ -36,30 +41,50 @@ class PortfolioSelfView(APIView):
             portfolio = self.get_object(request)
         except Portfolio.DoesNotExist:
             return Response({"detail": "Portfólio não encontrado para o usuário atual."}, status=404)
+
         self.check_object_permissions(request, portfolio)
-        return Response(PortfolioReadSerializer(portfolio).data, status=200)
+
+        # ✅ passa request no context
+        return Response(
+            PortfolioReadSerializer(portfolio, context={"request": request}).data,
+            status=200
+        )
 
     def put(self, request):
         try:
             portfolio = self.get_object(request)
         except Portfolio.DoesNotExist:
             return Response({"detail": "Portfólio não encontrado para o usuário atual."}, status=404)
+
         self.check_object_permissions(request, portfolio)
+
         serializer = PortfolioWriteSerializer(portfolio, data=request.data)
         serializer.is_valid(raise_exception=True)
         serializer.save()
-        return Response(PortfolioReadSerializer(portfolio).data, status=200)
+
+        # ✅ passa request no context
+        return Response(
+            PortfolioReadSerializer(portfolio, context={"request": request}).data,
+            status=200
+        )
     
     def patch(self, request):
         try:
             portfolio = self.get_object(request)
         except Portfolio.DoesNotExist:
             return Response({"detail": "Portfólio não encontrado para o usuário atual."}, status=404)
+
         self.check_object_permissions(request, portfolio)
+
         serializer = PortfolioWriteSerializer(portfolio, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         serializer.save()
-        return Response(PortfolioReadSerializer(portfolio).data, status=200)
+
+        # ✅ passa request no context
+        return Response(
+            PortfolioReadSerializer(portfolio, context={"request": request}).data,
+            status=200
+        )
 
     def post(self, request):
         return Response({"detail": "Criação via API desabilitada. O portfólio é criado automaticamente."}, status=405)
@@ -78,6 +103,7 @@ class PortfolioVideosView(APIView):
     def get(self, request, editor_id=None):
         if editor_id is None:
             return Response({"detail": "Informe editor_id."}, status=400)
+
         try:
             user = Account.objects.get(pk=editor_id, role=Account.Roles.EDITOR)
         except Account.DoesNotExist:
@@ -88,12 +114,14 @@ class PortfolioVideosView(APIView):
         except Portfolio.DoesNotExist:
             return Response({"detail": "Portfólio não encontrado."}, status=404)
 
-        data = PortfolioReadSerializer(p).data
+        # ✅ passa request no context
+        data = PortfolioReadSerializer(p, context={"request": request}).data
 
         rec_qs = RecommendationPost.objects.select_related("author").filter(portfolio=p).order_by("-id")
         data["recommendation_posts"] = RecommendationPostReadSerializer(rec_qs, many=True).data
 
         return Response(data, status=200)
+
 
 # =========================
 # CONTRATANTE
@@ -114,7 +142,11 @@ class ContractorPortfolioSelfView(APIView):
             p = self.get_portfolio(request)
         except ContractorPortfolio.DoesNotExist:
             return Response({"detail": "Portfólio não encontrado."}, status=404)
-        return Response(ContractorPortfolioReadSerializer(p).data)
+
+        # ✅ passa request no context (importante pro jobs.has_applied)
+        return Response(
+            ContractorPortfolioReadSerializer(p, context={"request": request}).data
+        )
 
     def put(self, request):
         try:
@@ -128,7 +160,11 @@ class ContractorPortfolioSelfView(APIView):
         serializer = ContractorPortfolioWriteSerializer(p, data=request.data)
         serializer.is_valid(raise_exception=True)
         serializer.save()
-        return Response(ContractorPortfolioReadSerializer(p).data)
+
+        # ✅ passa request no context
+        return Response(
+            ContractorPortfolioReadSerializer(p, context={"request": request}).data
+        )
 
     def patch(self, request):
         try:
@@ -142,7 +178,11 @@ class ContractorPortfolioSelfView(APIView):
         serializer = ContractorPortfolioWriteSerializer(p, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         serializer.save()
-        return Response(ContractorPortfolioReadSerializer(p).data)
+
+        # ✅ passa request no context
+        return Response(
+            ContractorPortfolioReadSerializer(p, context={"request": request}).data
+        )
 
 
 class ContractorPortfolioPublicView(APIView):
@@ -155,6 +195,7 @@ class ContractorPortfolioPublicView(APIView):
     def get(self, request, contractor_id=None):
         if contractor_id is None:
             return Response({"detail": "Informe contractor_id."}, status=400)
+
         try:
             user = Account.objects.get(pk=contractor_id, role=Account.Roles.CONTRACTOR)
         except Account.DoesNotExist:
@@ -165,5 +206,71 @@ class ContractorPortfolioPublicView(APIView):
         except ContractorPortfolio.DoesNotExist:
             return Response({"detail": "Portfólio não encontrado."}, status=404)
 
-        data = ContractorPortfolioReadSerializer(p).data
+        # ✅ AQUI era o bug: sem context o serializer não via request.user
+        data = ContractorPortfolioReadSerializer(
+            p, context={"request": request}
+        ).data
+
         return Response(data, status=200)
+
+class ContractorBannerUploadView(APIView):
+    permission_classes = [IsAuthenticated]
+    parser_classes = [MultiPartParser, FormParser]
+
+    def post(self, request):
+        file_obj = request.FILES.get("file")
+        if not file_obj:
+            return Response(
+                {"detail": "Nenhum arquivo enviado."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            portfolio = ContractorPortfolio.objects.get(contractor=request.user)
+        except ContractorPortfolio.DoesNotExist:
+            return Response(
+                {"detail": "Portfólio não encontrado."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        ext = os.path.splitext(file_obj.name)[1].lower()
+        filename = f"banners/{request.user.id}_{uuid.uuid4().hex}{ext}"
+
+        saved_path = default_storage.save(filename, file_obj)
+        url = request.build_absolute_uri(default_storage.url(saved_path))
+
+        portfolio.banner = url
+        portfolio.save(update_fields=["banner"])
+
+        return Response({"banner": url}, status=status.HTTP_200_OK)
+
+class PortfolioBannerUploadView(APIView):
+    permission_classes = [IsAuthenticated]
+    parser_classes = [MultiPartParser, FormParser]
+
+    def post(self, request):
+        file_obj = request.FILES.get("file")
+        if not file_obj:
+            return Response(
+                {"detail": "Nenhum arquivo enviado."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            portfolio = Portfolio.objects.get(editor=request.user)
+        except Portfolio.DoesNotExist:
+            return Response(
+                {"detail": "Portfólio não encontrado."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        ext = os.path.splitext(file_obj.name)[1].lower()
+        filename = f"banners/{request.user.id}_{uuid.uuid4().hex}{ext}"
+
+        saved_path = default_storage.save(filename, file_obj)
+        url = request.build_absolute_uri(default_storage.url(saved_path))
+
+        portfolio.banner = url
+        portfolio.save(update_fields=["banner"])
+
+        return Response({"banner": url}, status=status.HTTP_200_OK)
