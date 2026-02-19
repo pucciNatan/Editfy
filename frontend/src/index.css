@@ -1,0 +1,131 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
+All colors MUST be HSL.
+*/
+
+@layer base {
+  :root {
+    /* EditFy Dark Theme - Purple (#6C00FF) and Black (#0B0B0B) */
+    --background: 0 0% 4.3%;  /* #0B0B0B */
+    --foreground: 0 0% 98%;
+
+    --card: 0 0% 8%;
+    --card-foreground: 0 0% 98%;
+
+    --popover: 0 0% 8%;
+    --popover-foreground: 0 0% 98%;
+
+    --primary: 262 100% 50%;  /* #6C00FF Purple */
+    --primary-foreground: 0 0% 98%;
+
+    --secondary: 0 0% 15%;
+    --secondary-foreground: 0 0% 98%;
+
+    --muted: 0 0% 15%;
+    --muted-foreground: 0 0% 65%;
+
+    --accent: 262 100% 50%;  /* Purple accent */
+    --accent-foreground: 0 0% 98%;
+
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+
+    --border: 0 0% 20%;
+    --input: 0 0% 15%;
+    --ring: 262 100% 50%;
+
+    --radius: 0.5rem;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  }
+}
+
+@layer utilities {
+  .video-grid {
+    display: grid;
+    /* cada card ocupa 1 coluna; largura mínima ~260px, ajusta se quiser */
+    grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+    gap: 1.5rem;
+
+    /* altura base de 1 “bloco” */
+    grid-auto-rows: 260px;
+
+    /* deixa o grid “reorganizar” para preencher buracos */
+    grid-auto-flow: dense;
+  }
+  /* vertical = mais estreito e alto (9:16) */
+  .video-card-horizontal {
+  grid-row: span 1;
+}
+
+/* vertical = 2 blocos de altura */
+.video-card-vertical {
+  grid-row: span 2;
+}
+  
+  .hide-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  @keyframes float {
+    0%, 100% {
+      transform: translateY(0px);
+    }
+    50% {
+      transform: translateY(-4px);
+    }
+  }
+
+  .animate-float {
+    animation: float 3s ease-in-out infinite;
+  }
+
+  /* Scrollbar dark + roxo para a área do modal */
+  .custom-scroll {
+    /* Firefox */
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--primary)) hsl(var(--muted));
+  }
+
+  /* WebKit (Chrome, Edge, Safari) */
+  .custom-scroll::-webkit-scrollbar {
+    width: 10px;             /* espessura */
+  }
+
+  .custom-scroll::-webkit-scrollbar-track {
+    background: hsl(var(--muted));         /* trilho */
+    border-left: 1px solid hsl(var(--border));
+    border-radius: 999px;
+  }
+
+  .custom-scroll::-webkit-scrollbar-thumb {
+    background: linear-gradient(
+      180deg,
+      hsl(var(--primary)) 0%,
+      color-mix(in oklab, hsl(var(--primary)) 60%, black) 100%
+    );
+    border-radius: 999px;
+    border: 2px solid hsl(var(--muted));   /* cria um “gap” elegante */
+  }
+
+  .custom-scroll::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(
+      180deg,
+      color-mix(in oklab, hsl(var(--primary)) 85%, white) 0%,
+      hsl(var(--primary)) 100%
+    );
+  }
+
+}
