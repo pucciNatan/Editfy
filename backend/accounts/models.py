@@ -2,7 +2,6 @@ from django.db import models
 from django.core.validators import RegexValidator
 from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin, BaseUserManager
 
-
 class AccountManager(BaseUserManager):
     def _create_user(self, email, password, **extra_fields):
         if not email:
@@ -36,6 +35,7 @@ class Account(AbstractBaseUser, PermissionsMixin):
     id = models.BigAutoField(primary_key=True)
 
     nick = models.CharField(
+        unique=True,
         max_length=50,
         db_index=True,
         error_messages={
@@ -55,15 +55,6 @@ class Account(AbstractBaseUser, PermissionsMixin):
             "unique": "Já existe um usuário com este e-mail.",
             "invalid": "Informe um e-mail válido."
         },
-    )
-
-    phone = models.CharField(
-        max_length=20,
-        validators=[RegexValidator(
-            regex=r"^\+?\d{10,14}$",
-            message="Informe um telefone válido (somente números, com DDD; ex.: 85999998888)."
-        )],
-        error_messages={"blank": "Informe o telefone."},
     )
 
     cep = models.CharField(
@@ -99,7 +90,7 @@ class Account(AbstractBaseUser, PermissionsMixin):
     objects = AccountManager()
 
     USERNAME_FIELD = "email"
-    REQUIRED_FIELDS = ["full_name", "nick", "phone", "cep", "birth_date", "role"]
+    REQUIRED_FIELDS = ["full_name", "nick", "cep", "birth_date", "role"]
 
     class Meta:
         db_table = "accounts_account"

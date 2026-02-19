@@ -2,6 +2,7 @@ from pathlib import Path
 import os
 import environ
 
+DEBUG = True
 SETTINGS_DIR = Path(__file__).resolve().parent
 BACKEND_DIR  = SETTINGS_DIR.parent
 ROOT_DIR     = BACKEND_DIR.parent
@@ -32,7 +33,14 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "rest_framework",
     "rest_framework_simplejwt",
+    "django.contrib.postgres",
+    "corsheaders",
     "accounts",
+    "portfolio",
+    "content",
+    "jobs",
+    "channels",
+    "chat"
 ]
 
 MIDDLEWARE = [
@@ -43,6 +51,7 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "corsheaders.middleware.CorsMiddleware"
 ]
 
 ROOT_URLCONF = "core.urls"
@@ -61,6 +70,17 @@ TEMPLATES = [
         },
     },
 ]
+
+ASGI_APPLICATION = "core.asgi.application"
+
+REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels_redis.core.RedisChannelLayer",
+        "CONFIG": {"hosts": [REDIS_URL]},
+    }
+}
 
 WSGI_APPLICATION = "core.wsgi.application"
 
@@ -99,3 +119,22 @@ REST_FRAMEWORK = {
         "rest_framework_simplejwt.authentication.JWTAuthentication",
     )
 }
+
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:8080",
+    "http://localhost:8081",
+]
+
+MEDIA_URL = "/media/"
+MEDIA_ROOT = BACKEND_DIR / "media"
+
+# 🔹 IMPORTANTE: sempre com barra no começo e no fim
+STATIC_URL = "/static/"
+
+# onde o collectstatic vai jogar tudo (admin, etc.)
+STATIC_ROOT = BACKEND_DIR / "staticfiles"
+
+# se quiser ter uma pasta "backend/static" pra seus próprios arquivos
+STATICFILES_DIRS = [
+    BACKEND_DIR / "static",
+]
